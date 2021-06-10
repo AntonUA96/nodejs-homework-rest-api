@@ -7,8 +7,10 @@ const {
   validateSchemaLogin,
   validateSchemaSubscription,
 } = require("./validation");
+const upload = require("../../../helpers/upload");
 router.post("/register", validateSchemaRegister, ctrl.reg);
 router.post("/login", validateSchemaLogin, ctrl.login);
 router.post("/logout", guard, validateSchemaSubscription, ctrl.logout);
 router.get("/current", guard, ctrl.current);
+router.patch("/avatars", [guard, upload.single("avatar")], ctrl.avatars);
 module.exports = router;

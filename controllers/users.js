@@ -2,7 +2,9 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const Users = require("../model/users");
 const { HttpCode } = require("../helpers/constants");
+const UploadAvatar = require("../services/upload-avatars-local");
 const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
+const AVATARS_OF_USERS = process.env.AVATARS_OF_USERS;
 const reg = async (req, res, next) => {
   try {
     const user = await Users.findByEmail(req.body.email);
@@ -14,11 +16,11 @@ const reg = async (req, res, next) => {
       });
     }
     const newUser = await Users.create(req.body);
-    const { id, email, password, subscription } = newUser;
+    const { id, email, password, subscription, avatar } = newUser;
     return res.status(HttpCode.CREATED).json({
       status: "success",
       code: HttpCode.CREATED,
-      data: { id, email, password, subscription },
+      data: { id, email, password, subscription, avatar },
     });
   } catch (err) {
     next(err);
@@ -26,7 +28,7 @@ const reg = async (req, res, next) => {
 };
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, avatar } = req.body;
     const user = await Users.findByEmail(email);
     const isValidPassword = await user?.validPassword(password);
     if (!user || !isValidPassword) {
@@ -47,6 +49,7 @@ const login = async (req, res, next) => {
         user: {
           email: user.email,
           subscription: user.subscription,
+          avatar: user.avatar,
         },
       },
     });
@@ -81,4 +84,24 @@ const current = async (req, res, next) => {
     next(err);
   }
 };
-module.exports = { reg, login, logout, current };
+const avatars = async (req, res, next) => {
+  try {
+    const id = req.user.id;
+    const uploads = new UploadAvatar(AVATARS_OF_USERS);
+    const avatarUrl = await uploads.saveAvatarToStatic({
+      idUser: id,
+      pathFile: req.file.path,
+      name: req.file.filename,
+      oldFile: req.user.avatar,
+    });
+    await Users.updateAvatar(id, avatarUrl);
+    return res.json({
+      status: "success",
+      code: HttpCode.OK,
+      data: { avatarUrl },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+module.exports = { reg, login, logout, current, avatars };
